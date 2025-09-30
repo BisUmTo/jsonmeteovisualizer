@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generatore Card Meteo da JSON</title>
+    <style>
+        /* Stili Generali */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            color: #1c1e21;
+        }
+
+        /* Contenitore Principale con Layout Flex */
+        .container {
+            display: flex;
+            gap: 30px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .input-section, .output-section {
+            flex: 1; /* Le due sezioni si dividono lo spazio equamente */
+            background-color: #ffffff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            color: #0d2c4e;
+            border-bottom: 2px solid #e0e0e0;
+            padding-bottom: 10px;
+        }
+
+        /* Stili per l'area di input */
+        #jsonInput {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #dddfe2;
+            border-radius: 6px;
+            padding: 10px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 14px;
+            box-sizing: border-box; /* Per includere padding e border nel width */
+        }
+
+        #generateCardBtn {
+            display: block;
+            width: 100%;
+            padding: 12px 20px;
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #ffffff;
+            background-color: #1877f2;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        #generateCardBtn:hover {
+            background-color: #166fe5;
+        }
+        
+        #output-placeholder {
+            color: #606770;
+            text-align: center;
+            padding-top: 100px;
+        }
+
+        /* Stili per la Card Meteo */
+        .weather-card {
+            background: linear-gradient(135deg, #6dd5ed, #2193b0);
+            color: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            text-align: center;
+            animation: fadeIn 0.5s ease-in-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .weather-card h3 {
+            margin: 0;
+            font-size: 28px;
+            font-weight: 600;
+        }
+
+        .weather-info {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .weather-icon {
+            width: 100px;
+            height: 100px;
+        }
+
+        .temperature {
+            font-size: 64px;
+            font-weight: 700;
+            margin-left: 10px;
+        }
+
+        .description {
+            font-size: 20px;
+            text-transform: capitalize;
+            margin-top: -10px;
+        }
+
+        .details {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 25px;
+            font-size: 14px;
+        }
+        
+        .details > div {
+            text-align: center;
+        }
+
+        .details .label {
+            font-weight: 300;
+        }
+        
+        .details .value {
+            font-weight: 600;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="input-section">
+            <h2>1. Incolla la risposta JSON</h2>
+            <textarea id="jsonInput">{
+  "coord": { "lon": 11.512, "lat": 46.2904 },
+  "weather": [
+    {
+      "id": 804,
+      "main": "Clouds",
+      "description": "cielo coperto",
+      "icon": "04d"
+    }
+  ],
+  "base": "stations",
+  "main": {
+    "temp": 13.95,
+    "feels_like": 11.43,
+    "temp_min": 12.79,
+    "temp_max": 14.25,
+    "pressure": 1015,
+    "humidity": 61,
+    "sea_level": 1015,
+    "grnd_level": 834
+  },
+  "visibility": 10000,
+  "wind": { "speed": 1.12, "deg": 190, "gust": 1.92 },
+  "clouds": { "all": 100 },
+  "dt": 1727082343,
+  "sys": {
+    "type": 2,
+    "id": 2011164,
+    "country": "IT",
+    "sunrise": 1727067724,
+    "sunset": 1727111436
+  },
+  "timezone": 7200,
+  "id": 3165730,
+  "name": "Tesero",
+  "cod": 200
+}</textarea>
+            <button id="generateCardBtn">Genera Card Meteo</button>
+        </div>
+        <div class="output-section">
+            <h2>2. Risultato</h2>
+            <div id="weatherCardContainer">
+                 <p id="output-placeholder">La card meteo apparirà qui...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Aggiunge un "ascoltatore di eventi" che esegue il codice quando la pagina è completamente caricata
+        document.addEventListener('DOMContentLoaded', () => {
+            
+            // Trova gli elementi HTML con cui interagire e li salva in variabili
+            const jsonInput = document.getElementById('jsonInput');
+            const generateButton = document.getElementById('generateCardBtn');
+            const cardContainer = document.getElementById('weatherCardContainer');
+            const placeholder = document.getElementById('output-placeholder');
+
+            // Definisce cosa succede quando il bottone viene cliccato
+            generateButton.addEventListener('click', () => {
+                const jsonText = jsonInput.value;
+
+                // Controlla se l'area di testo è vuota
+                if (!jsonText.trim()) {
+                    cardContainer.innerHTML = '<p style="color: red;">L\'area di testo è vuota. Incolla un JSON valido.</p>';
+                    return;
+                }
+
+                try {
+                    // 1. PARSING: Tenta di convertire il testo in un oggetto JavaScript
+                    const data = JSON.parse(jsonText);
+
+                    // 2. ESTRAZIONE DATI: Estrae le informazioni necessarie dall'oggetto
+                    const cityName = data.name;
+                    const country = data.sys.country;
+                    const temperature = Math.round(data.main.temp);
+                    const tempMin = Math.round(data.main.temp_min);
+                    const tempMax = Math.round(data.main.temp_max);
+                    const description = data.weather[0].description;
+                    const iconCode = data.weather[0].icon;
+                    const iconUrl = `https://openweathermap.org/img/wn/${iconCode}@2x.png`;
+                    const humidity = data.main.humidity;
+                    const windSpeed = data.wind.speed;
+
+                    // Nasconde il testo segnaposto
+                    if (placeholder) {
+                        placeholder.style.display = 'none';
+                    }
+
+                    // 3. CREAZIONE HTML: Costruisce la stringa HTML per la card usando i dati estratti
+                    const cardHTML = `
+                        <div class="weather-card">
+                            <h3>${cityName}, ${country}</h3>
+                            <div class="weather-info">
+                                <img src="${iconUrl}" alt="Icona meteo" class="weather-icon">
+                                <div class="temperature">${temperature}°</div>
+                            </div>
+                            <p class="description">${description}</p>
+                            <div class="details">
+                                <div>
+                                    <div class="label">Min / Max</div>
+                                    <div class="value">${tempMin}° / ${tempMax}°</div>
+                                </div>
+                                <div>
+                                    <div class="label">Umidità</div>
+                                    <div class="value">${humidity}%</div>
+                                </div>
+                                <div>
+                                    <div class="label">Vento</div>
+                                    <div class="value">${windSpeed} m/s</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // 4. INSERIMENTO: Inserisce l'HTML generato nel contenitore a destra
+                    cardContainer.innerHTML = cardHTML;
+
+                } catch (error) {
+                    // Se il JSON.parse fallisce, mostra un messaggio di errore
+                    cardContainer.innerHTML = `<p style="color: red; font-weight: bold;">Errore: Il testo inserito non è un JSON valido. Dettagli: ${error.message}</p>`;
+                }
+            });
+        });
+    </script>
+
+</body>
+</html>
